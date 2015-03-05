@@ -1,6 +1,6 @@
 {
   "name": "pop-observe",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Property, range, map, and set content change observers for arrays, objects, and other instances.",
   "main": "index.js",
   "directories": {
