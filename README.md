@@ -13,6 +13,12 @@ debugging, and reuse state tracking objects to reduce garbage collection.
 -   Handler methods can return a child observer object, which will be implicitly
     cancelled before the next change, so observers can be stacked.
 
+## Installation
+
+```
+npm install --save pop-observe@1
+```
+
 ## Examples
 
 Observing the length of an array.
