@@ -73,10 +73,6 @@ ObservableRange.prototype.observeRangeChange = function (handler, name, note, ca
     return observer;
 };
 
-ObservableRange.prototype.observeRangeWillChange = function (handler, name, note) {
-    return this.observeRangeChange(handler, name, note, true);
-};
-
 ObservableRange.prototype.dispatchRangeChange = function (plus, minus, index, capture) {
     if (!dispatching) { // TODO && !debug?
         return this.startRangeChangeDispatchContext(plus, minus, index, capture);
