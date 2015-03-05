@@ -73,6 +73,22 @@ var observer = observeMapChange(array, function (type, plus, minus, index) {
 };
 ```
 
+Observing a property of a property.
+Note that the cancel method gets rid of observers on a.b and b.c.
+Note that the b.c observer gets canceled every time b changes.
+
+```js
+var a = {b: {c: 10}};
+var observer = observePropertyChange(a, "b", function (b) {
+    return observePropertyChange(b, "c", function (c) {
+        console.log("a.b.c", c);
+    });
+});
+a.b = {c: 20};
+a.b.c = 30;
+observer.cancel();
+```
+
 ## Change notification arguments
 
 -   Property change observers provide (plus, minus, name, object) change
