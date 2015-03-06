@@ -25,8 +25,8 @@ Observing the length of an array.
 
 ```js
 var array = [];
-var observer = observePropertyChange(array, "length", function (length) {
-    console.log(length);
+var observer = O.observePropertyChange(array, "length", function (length) {
+    expect(length).toBe(1);
 });
 array.push(10);
 observer.cancel();
@@ -36,47 +36,66 @@ Observing values at indexes.
 
 ```js
 var array = [];
+var change;
 var handler = {
     handlePropertyChange: function (plus, minus, index, object) {
-        console.log("index", index, "was", minus, "became", plus);
+        change = {
+            plus: plus,
+            minus: minus,
+            index: index,
+            object: object
+        };
     }
 };
-var observer0 = observePropertyChange(array, 0, handler);
-var observer1 = observePropertyChange(array, 1, handler);
-var observer2 = observePropertyChange(array, 2, handler);
+var observer0 = O.observePropertyChange(array, 0, handler);
+var observer1 = O.observePropertyChange(array, 1, handler);
+var observer2 = O.observePropertyChange(array, 2, handler);
+
 array.set(0, 10);
+expect(change).toEqual({plus: 10, minus: undefined, index: 0, object: array});
+
+array.set(0, 20);
+expect(change).toEqual({plus: 20, minus: 10, index: 0, object: array});
+
 array.set(1, 20);
-array.set(2, 30);
+expect(change).toEqual({plus: 20, minus: undefined, index: 1, object: array});
 ```
 
 Mirroring arrays.
 
 ```js
+var O = require("pop-observe");
 var swap = require("pop-swap");
 var array = [];
 var mirror = [];
-var observer = observeRangeChange(array, function (plus, minus, index) {
+var observer = O.observeRangeChange(array, function (plus, minus, index) {
     swap(mirror, index, minus.length, plus);
 });
 array.push(1, 2, 3);
 array.shift();
 array.pop();
-expect(mirror).toEqual([1]);
+expect(mirror).toEqual([2]);
 observer.cancel();
 ```
 
 Tracking an array with a plain object.
 
 ```js
+var O = require("pop-observe");
 var array = [];
 var object = {};
-var observer = observeMapChange(array, function (type, plus, minus, index) {
+var observer = O.observeMapChange(array, function (plus, minus, index, type) {
     if (type === "delete") {
         delete object[index];
     } else { // type === "create" || type === "update"
         object[index] = plus;
     }
-};
+});
+array.push(1, 2, 3);
+expect(object).toEqual({0: 1, 1: 2, 2: 3});
+
+array.splice(1, 1);
+expect(object).toEqual({0: 1, 1: 3});
 ```
 
 Observing a property of a property.
@@ -84,14 +103,22 @@ Note that the cancel method gets rid of observers on a.b and b.c.
 Note that the b.c observer gets canceled every time b changes.
 
 ```js
+var O = require("pop-observe");
 var a = {b: {c: 10}};
-var observer = observePropertyChange(a, "b", function (b) {
-    return observePropertyChange(b, "c", function (c) {
-        console.log("a.b.c", c);
+var value;
+var observer = O.observePropertyChange(a, "b", function (b) {
+    value = b.c;
+    return O.observePropertyChange(b, "c", function (c) {
+        value = c;
     });
 });
+
 a.b = {c: 20};
+expect(value).toBe(20);
+
 a.b.c = 30;
+expect(value).toBe(30);
+
 observer.cancel();
 ```
 
@@ -147,41 +174,35 @@ For this reason, observable arrays have a `set(index, value)` method.
 All ranged and map collections must implement manual dispatch when their
 `dispatchesRangeChanges` or `dispatchesMapChanges` properties are true.
 
--   ObservableObject.observePropertyChange(object, handler, note, capture)
--   ObservableObject.observePropertyWillChange(object, handler, note)
--   ObservableObject.dispatchPropertyChange(object, name, plus, minus, capture)
--   ObservableObject.dispatchPropertyWillChange(object, name, plus, minus)
--   ObservableObject.getPropertyChangeObservers(object, name, capture)
--   ObservableObject.getPropertyWillChangeObservers(object, name)
--   ObservableObject.makePropertyObservable(object, name)
--   ObservableObject.preventPropertyObserver(object, name)
+Object property change observers
 
--   ObservableObject.prototype.observePropertyChange(handler, note, capture)
--   ObservableObject.prototype.observePropertyWillChange(handler, note)
--   ObservableObject.prototype.dispatchPropertyChange(name, plus, minus, capture)
--   ObservableObject.prototype.dispatchPropertyWillChange(name, plus, minus)
--   ObservableObject.prototype.getPropertyChangeObservers(name, capture)
--   ObservableObject.prototype.getPropertyWillChangeObservers(name)
--   ObservableObject.prototype.makePropertyObservable(name)
--   ObservableObject.prototype.preventPropertyObserver(name)
+-   observePropertyChange(object, handler, note, capture) -> Observer
+-   observePropertyWillChange(object, handler, note) -> Observer
+-   dispatchPropertyChange(object, name, plus, minus, capture)
+-   dispatchPropertyWillChange(object, name, plus, minus)
 
--   PropertyChangeObserver.prototype.cancel()
+-   getPropertyChangeObservers(object, name, capture)
+-   getPropertyWillChangeObservers(object, name)
+-   makePropertyObservable(object, name)
+-   preventPropertyObserver(object, name)
 
--   ObservableRange.prototype.observeRangeChange(handler, name, note, capture)
--   ObservableRange.prototype.observeRangeWillChange(handler, name, note)
--   ObservableRange.prototype.dispatchRangeChange(handler, name, note, capture)
--   ObservableRange.prototype.dispatchRangeWillChange(handler, name, note)
--   ObservableRange.prototype.makeRangeChangesObservable()
+Range change observers
 
--   RangeChangeObserver.prototype.cancel()
+-   observeRangeChange(object, handler, note, capture) -> Observer
+-   observeRangeWillChange(object, handler, note) -> Observer
+-   dispatchRangeChange(object, plus, minus, index, capture)
+-   dispatchRangeWillChange(object, plus, minus, index)
 
--   ObservableMap.prototype.observeMapChange(handler, name, note, capture)
--   ObservableMap.prototype.observeMapWillChange(handler, name, note)
--   ObservableMap.prototype.dispatchMapChange(type, key, plus, minus, capture)
--   ObservableMap.prototype.dispatchMapWillChange(type, key, plus, minus)
--   ObservableMap.prototype.makeMapChangesObservable()
+Map change observers
 
--   MapChangeObserver.prototype.cancel()
+-   observeMapChange(object, handler, note, capture) -> Observer
+-   observeMapWillChange(object, handler, note) -> Observer
+-   dispatchMapChange(object, type, key, plus, minus, capture)
+-   dispatchMapWillChange(object, type, key, plus, minus)
+
+Observer objects in general
+
+-   Observer.prototype.cancel();
 
 ## Handlers
 
@@ -280,6 +301,46 @@ information about an observer, for example, where the observer came from.
     -   childObserver
     -   note
     -   capture
+
+## Implementing observability
+
+The `pop-observe/observable-object`, `pop-observe/observable-range`, and
+`pop-observe/observable-map` modules export mixable or prototypically
+inheritable constructors.
+Objects that inherit the observable interface must then dispatch change and will
+change notifications if they are being observed, in all of their methods that
+change their content.
+
+-   ObservableObject.observePropertyChange(object, handler, note, capture)
+-   ObservableObject.observePropertyWillChange(object, handler, note)
+-   ObservableObject.dispatchPropertyChange(object, name, plus, minus, capture)
+-   ObservableObject.dispatchPropertyWillChange(object, name, plus, minus)
+-   ObservableObject.getPropertyChangeObservers(object, name, capture)
+-   ObservableObject.getPropertyWillChangeObservers(object, name)
+-   ObservableObject.makePropertyObservable(object, name)
+-   ObservableObject.preventPropertyObserver(object, name)
+
+-   ObservableObject.prototype.observePropertyChange(handler, note, capture)
+-   ObservableObject.prototype.observePropertyWillChange(handler, note)
+-   ObservableObject.prototype.dispatchPropertyChange(name, plus, minus, capture)
+-   ObservableObject.prototype.dispatchPropertyWillChange(name, plus, minus)
+-   ObservableObject.prototype.getPropertyChangeObservers(name, capture)
+-   ObservableObject.prototype.getPropertyWillChangeObservers(name)
+-   ObservableObject.prototype.makePropertyObservable(name)
+-   ObservableObject.prototype.preventPropertyObserver(name)
+
+-   ObservableRange.prototype.observeRangeChange(handler, name, note, capture)
+-   ObservableRange.prototype.observeRangeWillChange(handler, name, note)
+-   ObservableRange.prototype.dispatchRangeChange(handler, name, note, capture)
+-   ObservableRange.prototype.dispatchRangeWillChange(handler, name, note)
+-   ObservableRange.prototype.makeRangeChangesObservable()
+
+-   ObservableMap.prototype.observeMapChange(handler, name, note, capture)
+-   ObservableMap.prototype.observeMapWillChange(handler, name, note)
+-   ObservableMap.prototype.dispatchMapChange(type, key, plus, minus, capture)
+-   ObservableMap.prototype.dispatchMapWillChange(type, key, plus, minus)
+-   ObservableMap.prototype.makeMapChangesObservable()
+
 
 ## Copyright and License
 

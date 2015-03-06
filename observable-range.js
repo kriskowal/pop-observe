@@ -146,6 +146,30 @@ ObservableRange.prototype.getRangeWillChangeObservers = function () {
     return this.getRangeChangeObservers(true);
 };
 
+ObservableRange.observeRangeChange = function (object, handler, name, note, capture) {
+    return object.observeRangeChange(handler, name, note, capture);
+};
+
+ObservableRange.observeRangeWillChange = function (object, handler, name, note) {
+    return object.observeRangeWillChange(handler, name, note);
+};
+
+ObservableRange.dispatchRangeChange = function (object, plus, minus, index, capture) {
+    return object.dispatchRangeChange(plus, minus, index, capture);
+};
+
+ObservableRange.dispatchRangeWillChange = function (object, plus, minus, index, capture) {
+    return object.dispatchRangeWillChange(plus, minus, index, capture);
+};
+
+/*
+    if (object.preventPropertyObserver) {
+        return object.preventPropertyObserver(name);
+    } else {
+        return preventPropertyObserver(object, name);
+    }
+*/
+
 function RangeChangeObserver() {
     this.init();
 }

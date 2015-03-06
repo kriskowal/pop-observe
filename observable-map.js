@@ -144,6 +144,22 @@ ObservableMap.prototype.getMapWillChangeObservers = function () {
     return this.getMapChangeObservers(true);
 };
 
+ObservableMap.observeMapChange = function (object, handler, name, note, capture) {
+    return object.observeMapChange(handler, name, note, capture);
+};
+
+ObservableMap.observeMapWillChange = function (object, handler, name, note) {
+    return object.observeMapWillChange(handler, name, note);
+};
+
+ObservableMap.dispatchMapChange = function (object, type, key, plus, minus, capture) {
+    return object.dispatchMapChange(type, key, plus, minus, capture);
+};
+
+ObservableMap.dispatchMapWillChange = function (object, type, key, plus, minus) {
+    return object.dispatchMapWillChange(type, key, plus, minus);
+};
+
 function MapChangeObserver() {
     this.init();
 }
