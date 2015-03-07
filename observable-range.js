@@ -7,22 +7,42 @@ var observerFreeList = [];
 var observerToFreeList = [];
 var dispatching = false;
 
-// Reusable property descriptor
-var hiddenValueProperty = {
-    value: null,
-    writable: true,
-    enumerable: false,
-    configurable: true
-};
-
 module.exports = ObservableRange;
 function ObservableRange() {
     throw new Error("Can't construct. ObservableRange is a mixin.");
 }
 
 ObservableRange.prototype.observeRangeChange = function (handler, name, note, capture) {
-    this.makeRangeChangesObservable();
-    var observers = this.getRangeChangeObservers(capture);
+    return observeRangeChange(this, handler, name, note, capture);
+};
+
+ObservableRange.prototype.observeRangeWillChange = function (handler, name, note) {
+    return observeRangeChange(this, handler, name, note, true);
+};
+
+ObservableRange.prototype.dispatchRangeChange = function (plus, minus, index, capture) {
+    return dispatchRangeChange(this, plus, minus, index, capture);
+};
+
+ObservableRange.prototype.dispatchRangeWillChange = function (plus, minus, index) {
+    return dispatchRangeChange(this, plus, minus, index, true);
+};
+
+ObservableRange.prototype.makeRangeChangesObservable = function () {
+    return makeRangeChangesObservable(this);
+};
+
+ObservableRange.prototype.getRangeChangeObservers = function (capture) {
+};
+
+ObservableRange.prototype.getRangeWillChangeObservers = function () {
+    return getRangeChangeObservers(this, true);
+};
+
+ObservableRange.observeRangeChange = observeRangeChange;
+function observeRangeChange(object, handler, name, note, capture) {
+    makeRangeChangesObservable(object);
+    var observers = getRangeChangeObservers(object, capture);
 
     var observer;
     if (observerFreeList.length) { // TODO !debug?
@@ -31,7 +51,7 @@ ObservableRange.prototype.observeRangeChange = function (handler, name, note, ca
         observer = new RangeChangeObserver();
     }
 
-    observer.object = this;
+    observer.object = object;
     observer.name = name;
     observer.capture = capture;
     observer.observers = observers;
@@ -71,33 +91,36 @@ ObservableRange.prototype.observeRangeChange = function (handler, name, note, ca
 
     // TODO issue warning if the number of handler records is worrisome
     return observer;
-};
+}
 
-ObservableRange.prototype.observeRangeWillChange = function (handler, name, note) {
-    return this.observeRangeChange(handler, name, note, true);
-};
+ObservableRange.observeRangeWillChange = observeRangeWillChange;
+function observeRangeWillChange(object, handler, name, note) {
+    return observeRangeChange(object, handler, name, note, true);
+}
 
-ObservableRange.prototype.dispatchRangeChange = function (plus, minus, index, capture) {
+ObservableRange.dispatchRangeChange = dispatchRangeChange;
+function dispatchRangeChange(object, plus, minus, index, capture) {
     if (!dispatching) { // TODO && !debug?
-        return this.startRangeChangeDispatchContext(plus, minus, index, capture);
+        return startRangeChangeDispatchContext(object, plus, minus, index, capture);
     }
-    var observers = this.getRangeChangeObservers(capture);
+    var observers = getRangeChangeObservers(object, capture);
     for (var observerIndex = 0; observerIndex < observers.length; observerIndex++) {
         var observer = observers[observerIndex];
         // The slicing ensures that handlers cannot interfere with another by
         // altering these arguments.
         observer.dispatch(plus.slice(), minus.slice(), index);
     }
-};
+}
 
-ObservableRange.prototype.dispatchRangeWillChange = function (plus, minus, index) {
-    return this.dispatchRangeChange(plus, minus, index, true);
-};
+ObservableRange.dispatchRangeWillChange = dispatchRangeWillChange;
+function dispatchRangeWillChange(object, plus, minus, index) {
+    return dispatchRangeChange(object, plus, minus, index, true);
+}
 
-ObservableRange.prototype.startRangeChangeDispatchContext = function (plus, minus, index, capture) {
+function startRangeChangeDispatchContext(object, plus, minus, index, capture) {
     dispatching = true;
     try {
-        this.dispatchRangeChange(plus, minus, index, capture);
+        dispatchRangeChange(object, plus, minus, index, capture);
     } catch (error) {
         if (typeof error === "object" && typeof error.message === "string") {
             error.message = "Range change dispatch possibly corrupted by error: " + error.message;
@@ -117,50 +140,35 @@ ObservableRange.prototype.startRangeChangeDispatchContext = function (plus, minu
             );
             // Using clear because it is observable. The handler record array
             // is obtainable by getPropertyChangeObservers, and is observable.
-            observerToFreeList.clear();
+            if (observerToFreeList.clear) {
+                observerToFreeList.clear();
+            } else {
+                observerToFreeList.length = 0;
+            }
         }
     }
-};
+}
 
-ObservableRange.prototype.makeRangeChangesObservable = function () {
-    this.dispatchesRangeChanges = true;
-};
+function makeRangeChangesObservable(object) {
+    if (Array.isArray(object)) {
+        Oa.makeRangeChangesObservable(object);
+    }
+    object.dispatchesRangeChanges = true;
+}
 
-ObservableRange.prototype.getRangeChangeObservers = function (capture) {
+function getRangeChangeObservers(object, capture) {
     if (capture) {
-        if (!this.rangeWillChangeObservers) {
-            hiddenValueProperty.value = [];
-            Object.defineProperty(this, "rangeWillChangeObservers", hiddenValueProperty);
+        if (!object.rangeWillChangeObservers) {
+            object.rangeWillChangeObservers = [];
         }
-        return this.rangeWillChangeObservers;
+        return object.rangeWillChangeObservers;
     } else {
-        if (!this.rangeChangeObservers) {
-            hiddenValueProperty.value = [];
-            Object.defineProperty(this, "rangeChangeObservers", hiddenValueProperty);
+        if (!object.rangeChangeObservers) {
+            object.rangeChangeObservers = [];
         }
-        return this.rangeChangeObservers;
+        return object.rangeChangeObservers;
     }
-};
-
-ObservableRange.prototype.getRangeWillChangeObservers = function () {
-    return this.getRangeChangeObservers(true);
-};
-
-ObservableRange.observeRangeChange = function (object, handler, name, note, capture) {
-    return object.observeRangeChange(handler, name, note, capture);
-};
-
-ObservableRange.observeRangeWillChange = function (object, handler, name, note) {
-    return object.observeRangeWillChange(handler, name, note);
-};
-
-ObservableRange.dispatchRangeChange = function (object, plus, minus, index, capture) {
-    return object.dispatchRangeChange(plus, minus, index, capture);
-};
-
-ObservableRange.dispatchRangeWillChange = function (object, plus, minus, index, capture) {
-    return object.dispatchRangeWillChange(plus, minus, index, capture);
-};
+}
 
 /*
     if (object.preventPropertyObserver) {
@@ -256,3 +264,4 @@ RangeChangeObserver.prototype.dispatch = function (plus, minus, index) {
     return this;
 };
 
+var Oa = require("./observable-array");

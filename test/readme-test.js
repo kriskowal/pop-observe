@@ -11,6 +11,15 @@ it("observes the length of an array", function () {
     observer.cancel();
 });
 
+it("observes property of an object", function () {
+    var object = {weight: 10};
+    var observer = O.observePropertyChange(object, "weight", function (weight) {
+        expect(weight).toBe(20);
+    });
+    object.weight = 20;
+    observer.cancel();
+});
+
 it("observes values at indexes", function () {
     var array = [];
     var change;

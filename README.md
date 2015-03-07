@@ -32,6 +32,17 @@ array.push(10);
 observer.cancel();
 ```
 
+Observing a property of an ordinary object.
+
+```js
+var object = {weight: 10};
+var observer = O.observePropertyChange(object, "weight", function (weight) {
+    expect(weight).toBe(20);
+});
+object.weight = 20;
+observer.cancel();
+```
+
 Observing values at indexes.
 
 ```js
@@ -124,23 +135,27 @@ observer.cancel();
 
 ## Change notification arguments
 
--   Property change observers provide (plus, minus, name, object) change
+-   Property change observers dispatch (plus, minus, name, object) change
     notifications when the value of a specific, named property changes.
     Each observer sees the old value (minus), new value (plus), property name
     (name), and the object (object) such that a single property change handler
     can service multiple observers.
     Observing a property of an ordinary object replaces that property with a
     getter and setter.
--   Range change observers provide (plus, minus, index, object) change
+-   Range change observers dispatch (plus, minus, index, object) change
     notifications when ordered values are removed (captured in a minus array),
     then added (captured in the plus array), at a particular index.
     Each handler also receives the object observed, so a single handler can
     service multiple observers.
--   Map change observers provide (plus, minus, key, object) change notifications
-    when the value for a specific key in a map has changed.
+-   Map change observers dispatch (plus, minus, key, object) change
+    notifications when the value for a specific key in a map has changed.
   
 ## Behavior on Arrays
 
+-   This library does not alter plain JavaScript arrays or the Array prototype.
+-   Observing an array transforms that array into an ObservableArray either by
+    subverting its prototype or adding properties directly to the instance.
+    Observable arrays have additional [swap][] and set methods.
 -   Observing any property change on an array transforms that array into an
     observable array and property changes are dispatched for the "length" or any
     value by its index.
@@ -150,16 +165,76 @@ observer.cancel();
     array and map changes are dispatched for changes to the value at the given
     index.
 
+[swap]: https://github.com/kriskowal/pop-swap
+
 ## Custom types
 
--   Arbitrary constructors can mix in or inherit the ObservableObject type
-    to support the observable interface directly and do not need to provide any
-    further support.
--   Arbitrary constructors can mix in or inherit the ObservableRangeChange type
-    and must explicitly dispatch change notifications when range change
-    observers are active.
--   This library does not provide any map implementations but provides the
-    ObservableMap for any to inherit or mix in.
+Arbitrary constructors can mix in or inherit the ObservableObject type to
+support the observable interface directly and do not need to provide any further
+support.
+
+```js
+var inherits = require("util").inherits;
+var ObservableObject = require("pop-observe/observable-object");
+function Custom() {}
+inherits(Custom, ObservableObject);
+```
+
+Arbitrary constructors can mix in or inherit the ObservableRangeChange type and
+must explicitly dispatch change notifications when range change observers are
+active.
+
+```js
+var inherits = require("util").inherits;
+var ObservableRange = require("pop-observe/observable-range");
+function Custom() {}
+inherits(Custom, ObservableRange);
+Customer.prototype.unshift = function unshift(value) {
+    if (this.dispatchesRangeChanges) {
+        this.dispatchRangeWillChange([value], [], 0);
+    }
+    // actual work
+    if (this.dispatchesRangeChanges) {
+        this.dispatchRangeChange([value], [], 0);
+    }
+};
+```
+
+This library does not provide any map implementations but provides the
+ObservableMap for any to inherit or mix in.
+
+```js
+var inherits = require("util").inherits;
+var ObservableMap = require("pop-observe/observable-map");
+function Custom() {}
+inherits(Custom, ObservableMap);
+Customer.prototype.delete = function delete(key) {
+    var old = this.get(key);
+    if (!old) {
+        return;
+    }
+    if (this.dispatchesMapChanges) {
+        this.dispatchMapWillChange("delete", key, undefined, old);
+    }
+    // actual work
+    if (this.dispatchesMapChanges) {
+        this.dispatchMapChange("delete", key, undefined, old);
+    }
+};
+```
+
+All of thse can be mixed by copying the properties from their prototypes.
+
+```js
+var ObservableObject = require("pop-observe/observable-object");
+// Your favorite property copying idiom here
+var owns = Object.prototype.hasOwnProperty;
+for (var name in ObservableObject.prototype) {
+    if (owns.call(ObservableObject.prototype, name)) {
+        Customer.prototype[name] = ObservableObject.prototype[name];
+    }
+}
+```
 
 ## Interface
 
@@ -181,8 +256,6 @@ Object property change observers
 -   dispatchPropertyChange(object, name, plus, minus, capture)
 -   dispatchPropertyWillChange(object, name, plus, minus)
 
--   getPropertyChangeObservers(object, name, capture)
--   getPropertyWillChangeObservers(object, name)
 -   makePropertyObservable(object, name)
 -   preventPropertyObserver(object, name)
 

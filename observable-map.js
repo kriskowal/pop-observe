@@ -4,22 +4,43 @@ var observerFreeList = [];
 var observerToFreeList = [];
 var dispatching = false;
 
-// Reusable property descriptor
-var hiddenValueProperty = {
-    value: null,
-    writable: true,
-    enumerable: false,
-    configurable: true
-};
-
 module.exports = ObservableMap;
 function ObservableMap() {
     throw new Error("Can't construct. ObservableMap is a mixin.");
 }
 
 ObservableMap.prototype.observeMapChange = function (handler, name, note, capture) {
-    this.makeMapChangesObservable();
-    var observers = this.getMapChangeObservers(capture);
+    return observeMapChange(this, handler, name, note, capture);
+};
+
+ObservableMap.prototype.observeMapWillChange = function (handler, name, note) {
+    return observeMapChange(this, handler, name, note, true);
+};
+
+ObservableMap.prototype.dispatchMapChange = function (type, key, plus, minus, capture) {
+    return dispatchMapChange(this, type, key, plus, minus, capture);
+};
+
+ObservableMap.prototype.dispatchMapWillChange = function (type, key, plus, minus) {
+    return dispatchMapWillChange(this, type, key, plus, minus, true);
+};
+
+ObservableMap.prototype.getMapChangeObservers = function (capture) {
+    return getMapChangeObservers(this, capture);
+};
+
+ObservableMap.prototype.getMapWillChangeObservers = function () {
+    return getMapChangeObservers(this, true);
+};
+
+ObservableMap.prototype.makeMapChangesObservable = function () {
+    return makeMapChangesObservable(this);
+};
+
+ObservableMap.observeMapChange = observeMapChange;
+function observeMapChange(object, handler, name, note, capture) {
+    makeMapChangesObservable(object);
+    var observers = getMapChangeObservers(object, capture);
 
     var observer;
     if (observerFreeList.length) { // TODO !debug?
@@ -28,7 +49,7 @@ ObservableMap.prototype.observeMapChange = function (handler, name, note, captur
         observer = new MapChangeObserver();
     }
 
-    observer.object = this;
+    observer.object = object;
     observer.name = name;
     observer.capture = capture;
     observer.observers = observers;
@@ -68,34 +89,37 @@ ObservableMap.prototype.observeMapChange = function (handler, name, note, captur
 
     // TODO issue warning if the number of handler records is worrisome
     return observer;
-};
+}
 
-ObservableMap.prototype.observeMapWillChange = function (handler, name, note) {
-    return this.observeMapChange(handler, name, note, true);
-};
+ObservableMap.observeMapWillChange = observeMapWillChange;
+function observeMapWillChange(object, handler, name, note) {
+    return observeMapChange(object, handler, name, note, true);
+}
 
-ObservableMap.prototype.dispatchMapChange = function (type, key, plus, minus, capture) {
+ObservableMap.dispatchMapChange = dispatchMapChange;
+function dispatchMapChange(object, type, key, plus, minus, capture) {
     if (plus === minus) {
         return;
     }
     if (!dispatching) { // TODO && !debug?
-        return this.startMapChangeDispatchContext(type, key, plus, minus, capture);
+        return startMapChangeDispatchContext(object, type, key, plus, minus, capture);
     }
-    var observers = this.getMapChangeObservers(capture);
+    var observers = getMapChangeObservers(object, capture);
     for (var index = 0; index < observers.length; index++) {
         var observer = observers[index];
         observer.dispatch(type, key, plus, minus);
     }
-};
+}
 
-ObservableMap.prototype.dispatchMapWillChange = function (type, key, plus, minus) {
-    return this.dispatchMapChange(type, key, plus, minus, true);
-};
+ObservableMap.dispatchMapWillChange = dispatchMapWillChange;
+function dispatchMapWillChange(object, type, key, plus, minus) {
+    return dispatchMapChange(object, type, key, plus, minus, true);
+}
 
-ObservableMap.prototype.startMapChangeDispatchContext = function (type, key, plus, minus, capture) {
+function startMapChangeDispatchContext(object, type, key, plus, minus, capture) {
     dispatching = true;
     try {
-        this.dispatchMapChange(type, key, plus, minus, capture);
+        dispatchMapChange(object, type, key, plus, minus, capture);
     } catch (error) {
         if (typeof error === "object" && typeof error.message === "string") {
             error.message = "Map change dispatch possibly corrupted by error: " + error.message;
@@ -118,47 +142,32 @@ ObservableMap.prototype.startMapChangeDispatchContext = function (type, key, plu
             observerToFreeList.clear();
         }
     }
-};
+}
 
-ObservableMap.prototype.makeMapChangesObservable = function () {
-    this.dispatchesMapChanges = true;
-};
-
-ObservableMap.prototype.getMapChangeObservers = function (capture) {
+function getMapChangeObservers(object, capture) {
     if (capture) {
-        if (!this.mapWillChangeObservers) {
-            hiddenValueProperty.value = [];
-            Object.defineProperty(this, "mapWillChangeObservers", hiddenValueProperty);
+        if (!object.mapWillChangeObservers) {
+            object.mapWillChangeObservers = [];
         }
-        return this.mapWillChangeObservers;
+        return object.mapWillChangeObservers;
     } else {
-        if (!this.mapChangeObservers) {
-            hiddenValueProperty.value = [];
-            Object.defineProperty(this, "mapChangeObservers", hiddenValueProperty);
+        if (!object.mapChangeObservers) {
+            object.mapChangeObservers = [];
         }
-        return this.mapChangeObservers;
+        return object.mapChangeObservers;
     }
-};
+}
 
-ObservableMap.prototype.getMapWillChangeObservers = function () {
-    return this.getMapChangeObservers(true);
-};
+function getMapWillChangeObservers(object) {
+    return getMapChangeObservers(object, true);
+}
 
-ObservableMap.observeMapChange = function (object, handler, name, note, capture) {
-    return object.observeMapChange(handler, name, note, capture);
-};
-
-ObservableMap.observeMapWillChange = function (object, handler, name, note) {
-    return object.observeMapWillChange(handler, name, note);
-};
-
-ObservableMap.dispatchMapChange = function (object, type, key, plus, minus, capture) {
-    return object.dispatchMapChange(type, key, plus, minus, capture);
-};
-
-ObservableMap.dispatchMapWillChange = function (object, type, key, plus, minus) {
-    return object.dispatchMapWillChange(type, key, plus, minus);
-};
+function makeMapChangesObservable(object) {
+    if (Array.isArray(object)) {
+        Oa.makeMapChangesObservable(object);
+    }
+    object.dispatchesMapChanges = true;
+}
 
 function MapChangeObserver() {
     this.init();
@@ -246,3 +255,4 @@ MapChangeObserver.prototype.dispatch = function (type, key, plus, minus) {
     return this;
 };
 
+var Oa = require("./observable-array");
