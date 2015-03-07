@@ -94,22 +94,6 @@ ObservableObject.dispatchPropertyWillChange = function (object, name, plus, minu
     }
 };
 
-ObservableObject.getPropertyChangeObservers = function (object, name, capture) {
-    if (object.getPropertyChangeObservers) {
-        return object.getPropertyChangeObservers(name, capture);
-    } else {
-        return getPropertyChangeObservers(object, name, capture);
-    }
-};
-
-ObservableObject.getPropertyWillChangeObservers = function (object, name) {
-    if (object.getPropertyWillChangeObservers) {
-        return object.getPropertyWillChangeObservers(name);
-    } else {
-        return getPropertyWillChangeObservers(object, name);
-    }
-};
-
 ObservableObject.makePropertyObservable = function (object, name) {
     if (object.makePropertyObservable) {
         return object.makePropertyObservable(name);
@@ -356,6 +340,10 @@ PropertyChangeObserver.prototype.dispatch = function (plus, minus) {
 };
 
 function makePropertyObservable(object, name) {
+    if (Array.isArray(object)) {
+        return Oa.makePropertyObservable(object, name);
+    }
+
     var wrappedDescriptor = wrapPropertyDescriptor(object, name);
 
     if (!wrappedDescriptor) {
@@ -588,3 +576,4 @@ function initState(object) {
     });
 }
 
+var Oa = require("./observable-array");

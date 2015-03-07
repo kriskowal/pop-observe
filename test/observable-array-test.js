@@ -1,7 +1,7 @@
 
 var sinon = require("sinon");
 var extendSpyExpectation = require("./spy-expectation");
-require("../observable-array");
+var O = require("../index");
 // TODO var describeObservableRange = require("./observable-range");
 // TODO make Array.from consistent with List
 
@@ -32,27 +32,27 @@ describe("Array change dispatch with map observers", function () {
 
         array = [];
 
-        array.observePropertyWillChange("length", function (plus, minus) {
+        O.observePropertyWillChange(array, "length", function (plus, minus) {
             spy("length will change from", minus, "to", plus);
         });
 
-        array.observePropertyChange("length", function (plus, minus) {
+        O.observePropertyChange(array, "length", function (plus, minus) {
             spy("length change from", minus, "to", plus);
         });
 
-        array.observeRangeWillChange(function (plus, minus, index) {
+        O.observeRangeWillChange(array, function (plus, minus, index) {
             spy("range will change from", minus, "to", plus, "at", index);
         });
 
-        array.observeRangeChange(function (plus, minus, index) {
+        O.observeRangeChange(array, function (plus, minus, index) {
             spy("range change from", minus, "to", plus, "at", index);
         });
 
-        array.observeMapWillChange(function (plus, minus, index, type) {
+        O.observeMapWillChange(array, function (plus, minus, index, type) {
             spy("map will", type, index, "from", minus, "to", plus);
         });
 
-        array.observeMapChange(function (plus, minus, index, type) {
+        O.observeMapChange(array, function (plus, minus, index, type) {
             spy("map", type, index, "from", minus, "to", plus);
         });
 
@@ -298,7 +298,7 @@ describe("Array changes", function () {
     it("observes range changes on arrays that are not otherwised observed", function () {
         var array = [1, 2, 3];
         var spy = sinon.spy();
-        array.observeRangeChange(spy);
+        O.observeRangeChange(array, spy);
         array.push(4);
         expect(spy).toHaveBeenCalledWith([4], [], 3, array);
     });
@@ -306,7 +306,7 @@ describe("Array changes", function () {
     it("observes length changes on arrays that are not otherwised observed", function () {
         var array = [1, 2, 3];
         var spy = sinon.spy();
-        array.observePropertyChange("length", spy);
+        O.observePropertyChange(array, "length", spy);
         array.push(4);
         expect(spy).toHaveBeenCalledWith(4, 3, "length", array);
     });
@@ -314,7 +314,7 @@ describe("Array changes", function () {
     it("observes map changes on arrays that are not otherwised observed", function () {
         var array = [1, 2, 3];
         var spy = sinon.spy();
-        array.observeMapChange(spy);
+        O.observeMapChange(array, spy);
         array.push(4);
         expect(spy).toHaveBeenCalledWith(4, undefined, 3, "create", array);
     });
@@ -322,7 +322,7 @@ describe("Array changes", function () {
     it("observes index changes on arrays that are not otherwised observed", function () {
         var array = [1, 2, 3];
         var spy = sinon.spy();
-        array.observePropertyChange(3, spy);
+        O.observePropertyChange(array, 3, spy);
         array.push(4);
         expect(spy).toHaveBeenCalledWith(4, undefined, 3, array);
     });
@@ -330,7 +330,7 @@ describe("Array changes", function () {
     it("does not observe redundant property changes", function () {
         var array = [];
         var spy = sinon.spy();
-        array.observePropertyChange(0, spy);
+        O.observePropertyChange(array, 0, spy);
         array.set(0, 1);
         expect(array).toEqual([1]);
         expect(spy).toHaveBeenCalledWith(1, void 0, 0, array);
@@ -343,7 +343,7 @@ describe("Array changes", function () {
     describe("swap", function () {
         it("works with large arrays", function () {
             var array = [];
-            array.makeRangeChangesObservable();
+            O.makeArrayObservable(array);
             var otherArray;
             otherArray = new Array(200000);
             // Should not throw a Maximum call stack size exceeded error.
@@ -366,7 +366,7 @@ describe("splice", function () {
 
     it("truncates start to length on an observed array", function () {
         var array = [];
-        array.makeRangeChangesObservable();
+        O.makeArrayObservable(array);
         array.splice(1000, 0, 1, 2, 3);
         expect(array).toEqual([1, 2, 3]);
     });
@@ -377,7 +377,7 @@ describe("swap", function () {
     it("grows the array if start beyond length", function () {
         var array = [];
         var spy = sinon.spy();
-        array.observeRangeChange(function (plus, minus, index) {
+        O.observeRangeChange(array, function (plus, minus, index) {
             spy(plus, minus, index);
         });
         array.swap(4, 0, [1, 2, 3]);
@@ -390,7 +390,7 @@ describe("set", function () {
     it("grows the array if start beyond length", function () {
         var array = [];
         var spy = sinon.spy();
-        array.observeRangeChange(function (plus, minus, index) {
+        O.observeRangeChange(array, function (plus, minus, index) {
             spy(plus, minus, index);
         });
         array.set(4, 1);
