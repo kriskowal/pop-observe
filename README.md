@@ -12,11 +12,13 @@ debugging, and reuse state tracking objects to reduce garbage collection.
     single handler can service multiple objects.
 -   Handler methods can return a child observer object, which will be implicitly
     cancelled before the next change, so observers can be stacked.
+-   Does not alter the Array base type, but promotes array instances to an
+    ObservableArray when they are observed.
 
 ## Installation
 
 ```
-npm install --save pop-observe@1
+npm install --save pop-observe@2
 ```
 
 ## Examples
