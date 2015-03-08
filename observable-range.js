@@ -28,10 +28,6 @@ ObservableRange.prototype.dispatchRangeWillChange = function (plus, minus, index
     return dispatchRangeChange(this, plus, minus, index, true);
 };
 
-ObservableRange.prototype.makeRangeChangesObservable = function () {
-    return makeRangeChangesObservable(this);
-};
-
 ObservableRange.prototype.getRangeChangeObservers = function (capture) {
 };
 
@@ -152,6 +148,9 @@ function startRangeChangeDispatchContext(object, plus, minus, index, capture) {
 function makeRangeChangesObservable(object) {
     if (Array.isArray(object)) {
         Oa.makeRangeChangesObservable(object);
+    }
+    if (object.makeRangeChangesObservable) {
+        object.makeRangeChangesObservable();
     }
     object.dispatchesRangeChanges = true;
 }

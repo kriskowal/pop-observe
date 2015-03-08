@@ -33,10 +33,6 @@ ObservableMap.prototype.getMapWillChangeObservers = function () {
     return getMapChangeObservers(this, true);
 };
 
-ObservableMap.prototype.makeMapChangesObservable = function () {
-    return makeMapChangesObservable(this);
-};
-
 ObservableMap.observeMapChange = observeMapChange;
 function observeMapChange(object, handler, name, note, capture) {
     makeMapChangesObservable(object);
@@ -165,6 +161,9 @@ function getMapWillChangeObservers(object) {
 function makeMapChangesObservable(object) {
     if (Array.isArray(object)) {
         Oa.makeMapChangesObservable(object);
+    }
+    if (object.makeMapChangesObservable) {
+        object.makeMapChangesObservable();
     }
     object.dispatchesMapChanges = true;
 }
